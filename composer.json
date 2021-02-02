@@ -12,5 +12,9 @@
             "email": "wcffgkobe@163.com"
         }
     ],
-    "minimum-stability": "stable"
+    "minimum-stability": "stable",
+    "autoload": {
+        "psr-4": {"tbryan\\": "src/Alinpay"},
+        "files": ["src/Qiniu/functions.php"]
+    }
 }
