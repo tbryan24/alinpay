@@ -14,7 +14,6 @@
     ],
     "minimum-stability": "stable",
     "autoload": {
-        "psr-4": {"tbryan\\": "src/Alinpay"},
-        "files": ["src/Qiniu/functions.php"]
+        "psr-4": {"tbryan\\": "src/Alinpay"}
     }
 }
