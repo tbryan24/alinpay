@@ -1,25 +1,16 @@
-{  
-  "name": "tbryan24/alinpay",  
-  "description": "Yii2 tbryan24 alinpay",  
-  "keywords": [  
-    "yii2",  
-    "alinpay"  
-  ], 
-  "type": "library",
-  "require": {  
-    "php": ">=5.3.3",  
-    "yiisoft/yii2": ">=2.0.6"  
-     
-  },  
-  "authors": [  
-    {  
-      "name": "tbryan24",  
-      "email": "wcffgkobe@163.com"  
-    }  
-  ],
-  "autoload": {  
-    "psr-4": {  
-      "tbryan\\": "src/Alinpay"  
-    }  
-  }
+{
+    "name": "tbryan24/alinpay",
+    "description": "alinpay",
+    "type": "library",
+    "require": {
+        "php": ">=5.6.0"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "tbryan",
+            "email": "wcffgkobe@163.com"
+        }
+    ],
+    "minimum-stability": "dev"
 }
