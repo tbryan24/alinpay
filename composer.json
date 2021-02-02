@@ -14,6 +14,6 @@
     ],
     "minimum-stability": "stable",
     "autoload": {
-        "psr-4": {"tbryan\\": "src/Alinpay"}
+        "psr-4": {"tbryan24\\Alinpay\\": "src/Alinpay"}
     }
 }
