@@ -6,19 +6,28 @@
  * @Time: 13:29
  */
 namespace tbryan24\Alinpay;
-header("Content-type:text/html;charset=utf-8");
+use app\core\payment\PaymentException;
+use yii\base\Exception;
+
+//header("Content-type:text/html;charset=utf-8");
 class Alinpay
 {
-    private $appid = '00000003';
-    private $cusid = '990440148166000';
-    private $apiurl = "https://vsp.allinpay.com/apiweb/unitorder";//生产环境
-    private $apiversion = '11';
+    private $appid = '';
+    private $cusid = '';
+    private $apiurl = "";//开发环境
+    private $apiversion = '';
+    private $private_key='';
+    private $public_key='';
+    private $appkey='';
 
     function setConfig($config){
         $this->appid=$config['appid'];
         $this->cusid=$config['cusid'];
         $this->apiurl=$config['apiurl'];
         $this->apiversion=$config['apiversion'];
+        $this->private_key=$config['private_key'];
+        $this->appkey=$config['appkey'];
+        $this->public_key=$config['public_key'];
         return $this;
     }
     //统一支付接口
@@ -43,12 +52,44 @@ class Alinpay
         $params["idno"] = $order['idno'];
         $params["truename"] =$order['truename'];
         $params["fqnum"] =$order['fqnum'];
-        $params["randomstr"] =$order['randomstr'];
+        $params["randomstr"] =$this->getRandomStr();
         $params["signtype"] =$order['signtype'];
         $params["front_url"] =$order['front_url'];
+        $params["private_key"] =$this->private_key;
         $params["sign"] = AlinpayUtil::Sign($params);//签名
         $paramsStr = AlinpayUtil::ToUrlParams($params);
         $url = $this->apiurl . "/pay";
+        $rsp = $this->request($url, $paramsStr);
+        $rspArray = json_decode($rsp, true);
+        return $rspArray;
+        /*try{
+            $rspArray['private_key']=$this->private_key;
+            if($this->validSign($rspArray)){
+                return $rspArray;
+            }else{
+                throw new \Exception('验签失败');
+            }
+        }catch (\Exception $e){
+            throw new \Exception($e->getMessage());
+        }*/
+
+
+    }
+
+    //当天交易用撤销
+    function cancel($order){
+        $params = array();
+        $params["cusid"] = $this->cusid;
+        $params["appid"] = $this->appid;
+        $params["version"] = $this->apiversion;
+        $params["trxamt"] = $order['trxamt'];
+        $params["reqsn"] = $order['reqsn'];//商户退款交易单号,商户平台唯一
+        $params["oldreqsn"] = $order['oldreqsn'];//原交易的商户交易单号
+        $params["randomstr"] = $this->getRandomStr();//
+        $params["signtype"] ='RSA';
+        $params["sign"] = AlinpayUtil::Sign($params);//签名
+        $paramsStr = AlinpayUtil::ToUrlParams($params);
+        $url = $this->apiurl . "/cancel";
         $rsp = $this->request($url, $paramsStr);
         echo "请求返回:".$rsp;
         echo "<br/>";
@@ -56,26 +97,55 @@ class Alinpay
         if($this->validSign($rspArray)){
             echo "验签正确,进行业务处理";
         }
-
     }
+
+    //当天交易请用撤销,非当天交易才用此退货接口
+    function refund($paymentRefund,$paymentOrderUnion){
+        $params = array();
+        $params["cusid"] = $this->cusid;
+        $params["appid"] = $this->appid;
+        $params["version"] = $this->apiversion;
+        $params["trxamt"] = $paymentRefund->amount * 100;
+        $params["reqsn"] = $paymentRefund->order_no;//商户退款交易单号,商户平台唯一
+        $params["oldreqsn"] = $paymentRefund->out_trade_no;//原交易的商户交易单号
+        $params["randomstr"] = $this->getRandomStr();//
+        $params["signtype"] ='RSA';
+        $params["private_key"] =$this->private_key;
+        $params["sign"] = AlinpayUtil::Sign($params);//签名
+        $paramsStr = AlinpayUtil::ToUrlParams($params);
+        $url = $this->apiurl . "/refund";
+        $rsp = $this->request($url, $paramsStr);
+        $rspArray = json_decode($rsp, true);
+        if ($rspArray['retcode']=='SUCCESS'&&$rspArray['trxstatus']=='0000'){
+            return true;
+        }else{
+            $msg=isset($rspArray['retmsg'])?$rspArray['retmsg']:$rspArray['errmsg'];
+            throw new PaymentException($msg);
+        }
+        /*$rspArray["private_key"] =$this->private_key;
+        if($this->validSign($rspArray)){
+            P('验签正确,进行业务处理');
+            echo "验签正确,进行业务处理";
+        }else{
+            P('验签失败');
+        }*/
+    }
+
 
     //验签
     function validSign($array){
         if("SUCCESS"==$array["retcode"]){
             $signRsp = strtolower($array["sign"]);
             $array["sign"] = "";
-            $sign =  strtolower(AlinpayUtil::Sign($array));
+            $sign =  strtolower(AlinpayUtil::sign($array));
             if($sign==$signRsp){
-                return TRUE;
-            }
-            else {
-                echo "验签失败:".$signRsp."--".$sign;
+                return true;
+            }else {
+                throw new \Exception("验签失败:".$signRsp."--".$sign);
             }
         }else{
-            echo $array["retmsg"];
+            throw new \Exception($array["retmsg"]);
         }
-
-        return FALSE;
     }
 
     //发送请求操作仅供参考,不为最佳实践
@@ -96,5 +166,16 @@ class Alinpay
         $output = curl_exec($ch);
         curl_close($ch);
         return  $output;
+    }
+
+    public function getRandomStr($randLength = 8)
+    {
+        $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHJKLMNPQEST123456789';
+        $len = strlen($chars);
+        $randStr = '';
+        for ($i = 0; $i < $randLength; $i++) {
+            $randStr .= $chars[mt_rand(0, $len - 1)];
+        }
+        return $randStr;
     }
 }
